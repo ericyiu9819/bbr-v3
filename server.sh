@@ -29,4 +29,4 @@ case "$num" in
 	installbbrv3
         ;;
 	   }
-    exit
+exit
