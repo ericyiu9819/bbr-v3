@@ -27,4 +27,5 @@ case "$num" in
 	2)
 	installbbrv3
         ;;
-	done
+	esac
+}
