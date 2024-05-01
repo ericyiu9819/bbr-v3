@@ -19,7 +19,6 @@ echo && echo -e " server加速 一键安装管理脚本 ${Red_font_prefix}[v${sh
  ${Green_font_prefix}1.${Font_color_suffix} 安装 ssr
  ${Green_font_prefix}2.${Font_color_suffix} 安装 bbrv3
 ————————————————————————————————" && echo
-{
 (read -p " 请输入数字 [0-11]:" num
 case "$num" in
 	1)
@@ -28,5 +27,5 @@ case "$num" in
 	2)
 	installbbrv3
         ;;
-               fi
-  }
+	done
+        ;;
