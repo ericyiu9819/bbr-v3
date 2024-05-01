@@ -18,6 +18,7 @@ echo && echo -e " server加速 一键安装管理脚本 ${Red_font_prefix}[v${sh
 ————————————内核管理————————————
  ${Green_font_prefix}1.${Font_color_suffix} 安装 ssr
  ${Green_font_prefix}2.${Font_color_suffix} 安装 bbrv3
+ ${Green_font_prefix}3.${Font_color_suffix} 退出脚本
 ————————————————————————————————" && echo
 (read -p " 请输入数字 [0-11]:" num
 case "$num" in
@@ -27,5 +28,14 @@ case "$num" in
 	2)
 	installbbrv3
         ;;
+	3)
+        exit 1
+	;;
+        *)
+	clear
+	echo -e "${Error}:请输入正确数字 [0-3]"
+	sleep 5s
+	start_menu
+	;;
 esac
 }
