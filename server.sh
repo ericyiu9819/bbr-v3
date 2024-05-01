@@ -12,9 +12,9 @@ installbbrv3(){
 	     }
 
 #开始菜单
-start_menu()"{
+start_menu(){
 clear
-echo && echo -e " 一键安装管理脚本 ${Red_font_prefix}[v${sh_ver}]${Font_color_suffix}
+echo && echo -e " TCP加速 一键安装管理脚本 ${Red_font_prefix}[v${sh_ver}]${Font_color_suffix}
 
 ————————————内核管理————————————
  ${Green_font_prefix}1.${Font_color_suffix} 安装 ssr
