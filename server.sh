@@ -28,4 +28,3 @@ case "$num" in
 	installbbrv3
         ;;
 	done
-        ;;
