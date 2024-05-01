@@ -27,4 +27,4 @@ case "$num" in
 	2)
 	installbbrv3
         ;;
-exit
+fi
