@@ -121,8 +121,6 @@ EOF
             echo "XanMod内核安装并BBR3启用成功。重启后生效"
             rm -f /etc/apt/sources.list.d/xanmod-release.list
             rm -f check_x86-64_psabi.sh*
-            server_reboot
-
               ;;
             [Nn])
               echo "已取消"
@@ -132,4 +130,17 @@ EOF
               ;;
           esac
         fi
-              ;;
+        
+  cd .. && rm -rf xanmod
+  detele_kernel
+  BBR_grub
+  echo -e "${Tip} ${Red_font_prefix}请检查上面是否有内核信息，无内核千万别重启${Font_color_suffix}"
+  echo -e "${Tip} ${Red_font_prefix}rescue不是正常内核，要排除这个${Font_color_suffix}"
+  echo -e "${Tip} 重启VPS后，请重新运行脚本开启${Red_font_prefix}BBR${Font_color_suffix}"
+  check_kernel
+  stty erase '^H' && read -p "需要重启VPS后，才能开启BBR，是否现在重启 ? [Y/n] :" yn
+  [ -z "${yn}" ] && yn="y"
+  if [[ $yn == [Yy] ]]; then
+    echo -e "${Info} VPS 重启中..."
+    reboot
+  fi
