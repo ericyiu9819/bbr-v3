@@ -70,7 +70,7 @@ EOF
               echo "无效的选择，请输入 Y 或 N。"
               ;;
           esac
-        fi
+
  fi
 
   cd .. && rm -rf xanmod
