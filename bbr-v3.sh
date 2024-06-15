@@ -71,8 +71,7 @@ EOF
               ;;
           esac
 
- fi
-
+  
   cd .. && rm -rf xanmod
   detele_kernel
   BBR_grub
