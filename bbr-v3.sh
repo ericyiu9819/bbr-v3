@@ -1,63 +1,6 @@
 #!/usr/bin/env bash
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
- if dpkg -l | grep -q 'linux-xanmod'; then
-            while true; do
-
-                  kernel_version=$(uname -r)
-                  echo "您已安装xanmod的BBRv3内核"
-                  echo "当前内核版本: $kernel_version"
-
-                  echo ""
-                  echo "内核管理"
-                  echo "------------------------"
-                  echo "1. 更新BBRv3内核              2. 卸载BBRv3内核"
-                  echo "------------------------"
-                  echo "0. 返回上一级选单"
-                  echo "------------------------"
-                  read -p "请输入你的选择: " sub_choice
-
-                  case $sub_choice in
-                      1)
-                        apt purge -y 'linux-*xanmod1*'
-                        update-grub
-
-                        # wget -qO - https://dl.xanmod.org/archive.key | gpg --dearmor -o /usr/share/keyrings/xanmod-archive-keyring.gpg --yes
-                        wget -qO - https://raw.githubusercontent.com/kejilion/sh/main/archive.key | gpg --dearmor -o /usr/share/keyrings/xanmod-archive-keyring.gpg --yes
-
-                        # 步骤3：添加存储库
-                        echo 'deb [signed-by=/usr/share/keyrings/xanmod-archive-keyring.gpg] http://deb.xanmod.org releases main' | tee /etc/apt/sources.list.d/xanmod-release.list
-
-                        # version=$(wget -q https://dl.xanmod.org/check_x86-64_psabi.sh && chmod +x check_x86-64_psabi.sh && ./check_x86-64_psabi.sh | grep -oP 'x86-64-v\K\d+|x86-64-v\d+')
-                        version=$(wget -q https://raw.githubusercontent.com/kejilion/sh/main/check_x86-64_psabi.sh && chmod +x check_x86-64_psabi.sh && ./check_x86-64_psabi.sh | grep -oP 'x86-64-v\K\d+|x86-64-v\d+')
-
-                        apt update -y
-                        apt install -y linux-xanmod-x64v$version
-
-                        echo "XanMod内核已更新。重启后生效"
-                        rm -f /etc/apt/sources.list.d/xanmod-release.list
-                        rm -f check_x86-64_psabi.sh*
-
-                  
-                          ;;
-                      2)
-                        apt purge -y 'linux-*xanmod1*'
-                        update-grub
-                        echo "XanMod内核已卸载。重启后生效"
-                        server_reboot
-                          ;;
-                      0)
-                          break  # 跳出循环，退出菜单
-                          ;;
-
-                      *)
-                          break  # 跳出循环，退出菜单
-                          ;;
-
-                  esac
-            done
-        else
-
           clear
           echo "请备份数据，将为你升级Linux内核开启BBR3"
           echo "官网介绍: https://xanmod.org/"
