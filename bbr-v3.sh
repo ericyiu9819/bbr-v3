@@ -39,8 +39,7 @@ export PATH
                         rm -f /etc/apt/sources.list.d/xanmod-release.list
                         rm -f check_x86-64_psabi.sh*
 
-                        server_reboot
-
+                  
                           ;;
                       2)
                         apt purge -y 'linux-*xanmod1*'
