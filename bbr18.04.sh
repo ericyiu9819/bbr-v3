@@ -6,10 +6,6 @@ Installkernel(){
    apt-get install --install-recommends linux-generic-hwe-18.04
 }
 
-#移除舊版內核
-Removekernel(){
-  apt-get update && apt-get upgrade -y && apt-get autoremove -y --purge
-}
 #開啟原版bbr
 startbbr(){
  modprobe tcp_bbr
@@ -18,9 +14,10 @@ echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
 echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
 sysctl -p
 {
-#重啟
-reboot（）{
-   reboot
+#移除舊版內核
+Removekernel(){
+  apt-get update && apt-get upgrade -y && apt-get autoremove -y --purge
+}
 }
  #开始菜单
 start_menu(){
@@ -45,7 +42,4 @@ case "$num" in
      3)
      startbbr
      ;;
-     4)
-     reboot
-     ;;
-   fi
+    fi
