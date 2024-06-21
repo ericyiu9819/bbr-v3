@@ -42,6 +42,5 @@ case "$num" in
      3)
      startbbr
      ;;
-
-
-fi
+esac
+}
