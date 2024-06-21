@@ -44,3 +44,4 @@ case "$num" in
      ;;
 esac
 }
+fi
