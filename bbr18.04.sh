@@ -46,6 +46,6 @@ case "$num" in
      startbbr
      ;;
      4)
-     reboot)
+     reboot
      ;;
    fi
