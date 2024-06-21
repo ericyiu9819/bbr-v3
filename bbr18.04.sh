@@ -42,7 +42,7 @@ case "$num" in
      3)
      startbbr
      ;;
-     echo -e "${Error}:请输入正确数字 [0-14]"
+     echo "${Error}:请输入正确数字 [0-14]"
 	sleep 5s
 	start_menu
 	;;
