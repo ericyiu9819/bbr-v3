@@ -36,16 +36,16 @@ echo && echo -e " bbr18.04管理脚本 ${Red_font_prefix}[v${sh_ver}]${Font_colo
 echo
 read -p " 请输入数字 [0-11]:" num
 case "$num" in
-	1)
-	Installkernel
-   ;;
-	2)
-	Removekernel
-	;;
-	3)
-	startbbr
-	;;
-   4)
-   reboot)
-   ;;
+    1)
+     Installkernel
+     ;;
+    2)
+     Removekernel
+     ;;
+     3)
+     startbbr
+     ;;
+     4)
+     reboot)
+     ;;
    fi
