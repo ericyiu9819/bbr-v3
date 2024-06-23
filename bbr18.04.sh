@@ -42,5 +42,6 @@ case "$num" in
      3)
      startbbr
      ;;
-     }
+
+}
 done
