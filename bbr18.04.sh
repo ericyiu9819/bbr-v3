@@ -13,13 +13,15 @@ echo "tcp_bbr" >> /etc/modules-load.d/modules.conf
 echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
 echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
 sysctl -p
-{
+}
+
 #移除舊版內核
 Removekernel(){
   apt-get update && apt-get upgrade -y && apt-get autoremove -y --purge
 }
-}
- #开始菜单
+
+
+#开始菜单
 start_menu(){
 clear
 echo && echo -e " bbr18.04管理脚本 ${Red_font_prefix}[v${sh_ver}]${Font_color_suffix}
