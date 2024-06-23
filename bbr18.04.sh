@@ -31,7 +31,7 @@ echo && echo -e " bbr18.04管理脚本 ${Red_font_prefix}[v${sh_ver}]${Font_colo
 ————————————————————————————————" && echo
 
 echo
-read -p " 请输入数字 [0-11]:" num
+read -p " 请输入数字 [0-3]:" num
 case "$num" in
     1)
      Installkernel
@@ -42,4 +42,5 @@ case "$num" in
      3)
      startbbr
      ;;
-done
+esac
+          }
