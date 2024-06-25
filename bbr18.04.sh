@@ -43,8 +43,8 @@ echo && echo -e " bbr18.04 一键安装管理脚本 ${Red_font_prefix}[v${sh_ver
   check_status
 	read -p " 请输入数字 [0-11]:" num
 case "$num" in
-	1)
-	install
+  1)
+  install
   ;;
   2)
   remove
@@ -54,12 +54,12 @@ case "$num" in
   ;;
   4)
   exit 1
-	;;
+  ;;
   *)
-	clear
-	echo -e "${Error}:请输入正确数字 [0-14]"
-	sleep 5s
-	start_menu
-	;;
+    clear
+    echo -e "${Error}:请输入正确数字 [0-14]"
+    sleep 5s
+    start_menu
+  ;;
 esac
 }
