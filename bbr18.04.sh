@@ -2,16 +2,6 @@
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 
-#=================================================
-#	System Required: CentOS 6/7,Debian 8/9,Ubuntu 16+
-#	Description: BBR+BBR魔改版+BBRplus+Lotserver
-#	Version: 1.3.2
-#	Author: 千影,cx9208
-#	Blog: https://www.94ish.me/
-#=================================================
-
-sh_ver="1.3.2"
-github="raw.githubusercontent.com/ericyiu9819/bbr-plus/master"
 
 Green_font_prefix="\033[32m" && Red_font_prefix="\033[31m" && Green_background_prefix="\033[42;37m" && Red_background_prefix="\033[41;37m" && Font_color_suffix="\033[0m"
 Info="${Green_font_prefix}[信息]${Font_color_suffix}"
@@ -34,39 +24,42 @@ echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
 echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
 sysctl -p
        }
-
 #开始菜单
 start_menu(){
 clear
-echo && echo -e " bbr18.04 一键安装管理脚本 ${Red_font_prefix}[v${sh_ver}]${Font_color_suffix}
+echo && echo -e " TCP加速 一键安装管理脚本 ${Red_font_prefix}[v${sh_ver}]${Font_color_suffix}
 
- ————————————内核管理————————————
- ${Green_font_prefix}1.${Font_color_suffix} 安装内核
- ${Green_font_prefix}2.${Font_color_suffix} 清除多餘内核
- ${Green_font_prefix}3.${Font_color_suffix} 開啟bbr算法 
- ${Green_font_prefix}4.${Font_color_suffix} 退出腳本 
+  
+ ${Green_font_prefix}0.${Font_color_suffix} 升级脚本
+————————————内核管理————————————
+ ${Green_font_prefix}1.${Font_color_suffix} 安装BBR版18.04内核
+ ${Green_font_prefix}2.${Font_color_suffix} 卸載多餘內核 
+ ${Green_font_prefix}3.${Font_color_suffix} 開啟 算法
  ————————————————————————————————" && echo
- 
-  check_status
-	read -p " 请输入数字 [0-11]:" num
+
+	check_status
+	if [[ ${kernel_status} == "noinstall" ]]; then
+		echo -e " 当前状态: ${Green_font_prefix}未安装${Font_color_suffix} 加速内核 ${Red_font_prefix}请先安装内核${Font_color_suffix}"
+	else
+		echo -e " 当前状态: ${Green_font_prefix}已安装${Font_color_suffix} ${_font_prefix}${kernel_status}${Font_color_suffix} 加速内核 , ${Green_font_prefix}${run_status}${Font_color_suffix}"
+		
+	fi
+echo
+read -p " 请输入数字 [0-11]:" num
 case "$num" in
-  1)
-  install
-  ;;
-  2)
-  remove
-  ;;
-  3)
-  openbbr
-  ;;
-  4)
-  exit 1
-  ;;
-  *)
-    clear
-    echo -e "${Error}:请输入正确数字 [0-14]"
-    sleep 5s
-    start_menu
-  ;;
+	1)
+	install
+	;;
+	2)
+        romove
+	3)
+        openbbr
+	;;
+        *)
+	clear
+	echo -e "${Error}:请输入正确数字 [0-14]"
+	sleep 5s
+	start_menu
+	;;
 esac
 }
