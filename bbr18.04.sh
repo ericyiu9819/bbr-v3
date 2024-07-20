@@ -48,11 +48,11 @@ case "$num" in
 	;;
 	2)
 	remove
-  ;;
+        ;;
 	3)
-  exit 1
-  ;;
-  *)
+        exit 1
+        ;;
+        *)
 	clear
  	echo -e "${Error}:请输入正确数字 [0-3]"
 	sleep 5s
