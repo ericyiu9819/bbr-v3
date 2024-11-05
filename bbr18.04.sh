@@ -3,9 +3,9 @@ PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 
 #安装18.04內核
-  install18.04{   
-        apt-get install --install-recommends linux-generic-hwe-18.04
-	}
+  install18.04{
+    apt-get install --install-recommends linux-generic-hwe-18.04
+}
 
 #移除舊版內核
  remove{
