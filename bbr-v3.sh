@@ -112,3 +112,4 @@ EOF
             rm -f /etc/apt/sources.list.d/xanmod-release.list
             rm -f check_x86-64_psabi.sh*
             reboot
+            done
