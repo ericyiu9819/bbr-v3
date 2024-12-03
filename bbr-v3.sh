@@ -113,4 +113,3 @@ EOF
             rm -f check_x86-64_psabi.sh*
             reboot
             ;;
-           done
