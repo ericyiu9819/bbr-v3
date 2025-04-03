@@ -1,17 +1,30 @@
 #!/bin/bash
 
-# 更新系統並安裝基本依賴
-echo "Updating system and installing dependencies..."
-sudo yum update -y
-sudo yum install -y epel-release
-sudo yum install -y nodejs nginx
+# 更新系統並修復源
+echo "Fixing CentOS 8 repositories..."
+sudo mv /etc/yum.repos.d/CentOS-AppStream.repo /etc/yum.repos.d/CentOS-AppStream.repo.bak
+sudo tee /etc/yum.repos.d/CentOS-AppStream.repo <<EOF
+[AppStream]
+name=CentOS-8 - AppStream
+baseurl=http://vault.centos.org/centos/8/AppStream/x86_64/os/
+gpgcheck=1
+enabled=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial
+EOF
+sudo yum clean all
+sudo yum makecache
+
+# 安裝 Node.js
+echo "Installing Node.js..."
+curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
+sudo yum install -y nodejs
 
 # 安裝 MongoDB
 echo "Installing MongoDB..."
 sudo tee /etc/yum.repos.d/mongodb-org.repo <<EOF
 [mongodb-org-5.0]
 name=MongoDB Repository
-baseurl=https://repo.mongodb.org/yum/redhat/\$releasever/mongodb-org/5.0/x86_64/
+baseurl=https://repo.mongodb.org/yum/redhat/8/mongodb-org/5.0/x86_64/
 gpgcheck=1
 enabled=1
 gpgkey=https://www.mongodb.org/static/pgp/server-5.0.asc
@@ -19,6 +32,12 @@ EOF
 sudo yum install -y mongodb-org
 sudo systemctl start mongod
 sudo systemctl enable mongod
+
+# 安裝 Nginx
+echo "Installing Nginx..."
+sudo yum install -y nginx
+sudo systemctl start nginx
+sudo systemctl enable nginx
 
 # 創建項目目錄並移動文件
 echo "Setting up project directory..."
