@@ -1,43 +1,21 @@
 #!/bin/bash
 
-# 更新系統並修復源
-echo "Fixing CentOS 8 repositories..."
-sudo mv /etc/yum.repos.d/CentOS-AppStream.repo /etc/yum.repos.d/CentOS-AppStream.repo.bak
-sudo tee /etc/yum.repos.d/CentOS-AppStream.repo <<EOF
-[AppStream]
-name=CentOS-8 - AppStream
-baseurl=http://vault.centos.org/centos/8/AppStream/x86_64/os/
-gpgcheck=1
-enabled=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial
-EOF
-sudo yum clean all
-sudo yum makecache
+# 更新系統並安裝基本依賴
+echo "Updating system and installing dependencies..."
+sudo apt update -y && sudo apt upgrade -y
+sudo apt install -y curl git nginx
 
-# 安裝 Node.js
+# 安裝 Node.js (LTS 版本 18.x)
 echo "Installing Node.js..."
-curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
-sudo yum install -y nodejs
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+node -v  # 檢查版本
 
 # 安裝 MongoDB
 echo "Installing MongoDB..."
-sudo tee /etc/yum.repos.d/mongodb-org.repo <<EOF
-[mongodb-org-5.0]
-name=MongoDB Repository
-baseurl=https://repo.mongodb.org/yum/redhat/8/mongodb-org/5.0/x86_64/
-gpgcheck=1
-enabled=1
-gpgkey=https://www.mongodb.org/static/pgp/server-5.0.asc
-EOF
-sudo yum install -y mongodb-org
-sudo systemctl start mongod
-sudo systemctl enable mongod
-
-# 安裝 Nginx
-echo "Installing Nginx..."
-sudo yum install -y nginx
-sudo systemctl start nginx
-sudo systemctl enable nginx
+sudo apt install -y mongodb
+sudo systemctl start mongodb
+sudo systemctl enable mongodb
 
 # 創建項目目錄並移動文件
 echo "Setting up project directory..."
@@ -61,8 +39,7 @@ sudo pm2 startup | sudo bash
 
 # 配置 Nginx
 echo "Configuring Nginx..."
-sudo mkdir -p /etc/nginx/conf.d
-sudo tee /etc/nginx/conf.d/inventory.conf <<EOL
+sudo tee /etc/nginx/sites-available/inventory <<EOL
 server {
     listen 80;
     server_name 80.96.156.230;
@@ -78,11 +55,17 @@ server {
     }
 }
 EOL
+sudo ln -sf /etc/nginx/sites-available/inventory /etc/nginx/sites-enabled/
 sudo systemctl restart nginx
 
 # 創建備份目錄
 echo "Creating backup directory..."
 sudo mkdir -p /backups
 sudo chmod 755 /backups
+
+# 開放防火牆端口
+echo "Configuring firewall..."
+sudo ufw allow 80
+sudo ufw status
 
 echo "Installation complete! Access the app at http://80.96.156.230"
