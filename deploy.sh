@@ -39,7 +39,7 @@ echo "Configuring Nginx..."
 cat <<EOL | sudo tee /etc/nginx/sites-available/inventory
 server {
     listen 80;
-    server_name localhost; # 替換為你的域名或 IP
+    server_name 80.96.156.230; # 替換為你的域名或 IP
 
     location / {
         root /var/www/inventory;
