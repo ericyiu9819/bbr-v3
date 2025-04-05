@@ -11,6 +11,9 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
+# Cloudcone VPS 帶寬參數
+BANDWIDTH="1000Mbit"  # 1Gbit 帶寬
+
 # 檢查系統類型
 if [ -f /etc/debian_version ]; then
     OS="debian"
@@ -20,6 +23,14 @@ else
     echo -e "${RED}不支持的系統！僅支持 Ubuntu/Debian 或 CentOS/RHEL${NC}"
     exit 1
 fi
+
+# 檢測網卡名稱（Cloudcone 通常使用 ensX 或 ethX）
+NET_INTERFACE=$(ip link | grep -oP '(ens|eth)\w+' | head -n 1)
+if [ -z "$NET_INTERFACE" ]; then
+    echo -e "${RED}未檢測到網卡，請手動指定網卡名稱${NC}"
+    exit 1
+fi
+echo "檢測到的網卡: $NET_INTERFACE"
 
 # 檢查當前內核版本並確認 BBR 支持
 check_bbr() {
@@ -43,7 +54,7 @@ get_latest_kernel() {
 install_kernel() {
     echo "正在下載並安裝 linux-$LATEST_KERNEL..."
     if [ "$OS" == "debian" ]; then
-        # 下載內核頭文件和映像
+        # 下載內核頭文件和映像（適配 Cloudcone 的 Ubuntu 環境）
         wget -q "https://kernel.ubuntu.com/~kernel-ppa/mainline/v$LATEST_KERNEL/linux-headers-$LATEST_KERNEL-generic_$LATEST_KERNEL-1_amd64.deb"
         wget -q "https://kernel.ubuntu.com/~kernel-ppa/mainline/v$LATEST_KERNEL/linux-image-unsigned-$LATEST_KERNEL-generic_$LATEST_KERNEL-1_amd64.deb"
         # 安裝
@@ -96,18 +107,18 @@ enable_cake() {
             yum install -y iproute kernel-modules-extra
         fi
     fi
-    # 配置 Cake 為默認隊列
-    echo "啟用 Cake 算法..."
+    # 配置 Cake 為默認隊列並應用 1Gbit 帶寬
+    echo "啟用 Cake 算法，設置帶寬為 $BANDWIDTH..."
     sysctl -w net.core.default_qdisc=cake
     echo "net.core.default_qdisc=cake" >> /etc/sysctl.conf
     sysctl -p
-    # 示例：為 eth0 設置 Cake（根據實際網卡名稱修改）
-    tc qdisc add dev eth0 root cake bandwidth 100Mbit
-    echo "Cake 已應用於 eth0，帶寬限制為 100Mbit（可根據需要調整）。"
+    # 為指定網卡設置 Cake
+    tc qdisc replace dev "$NET_INTERFACE" root cake bandwidth "$BANDWIDTH"
+    echo "Cake 已應用於 $NET_INTERFACE，帶寬限制為 $BANDWIDTH。"
 }
 
 # 主流程
-echo "開始執行一鍵安裝腳本..."
+echo "開始執行 Cloudcone VPS 一鍵安裝腳本（帶寬: $BANDWIDTH）..."
 check_bbr
 get_latest_kernel
 
@@ -127,6 +138,6 @@ enable_cake
 # 驗證結果
 echo "驗證當前設置..."
 sysctl net.ipv4.tcp_congestion_control
-tc qdisc show dev eth0
+tc qdisc show dev "$NET_INTERFACE"
 
 echo -e "${GREEN}安裝完成！請重啟系統以應用新內核（sudo reboot）。${NC}"
