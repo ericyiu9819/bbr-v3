@@ -23,21 +23,25 @@ if [ -z "$NET_INTERFACE" ]; then
 fi
 echo "檢測到的網卡: $NET_INTERFACE" | tee -a "$LOG_FILE"
 
-# 檢測系統類型
+# 檢測系統類型並設置包管理器
 detect_os() {
     if [ -f /etc/debian_version ]; then
-        OS="debian"  # 包括 Ubuntu
+        OS="debian"
         PKG_MANAGER="apt-get"
+        DEV_PACKAGES="libncurses-dev libssl-dev libelf-dev"
     elif [ -f /etc/redhat-release ]; then
         if grep -qi "centos" /etc/redhat-release; then
             OS="centos"
             PKG_MANAGER="yum"
+            DEV_PACKAGES="ncurses-devel openssl-devel elfutils-libelf-devel"
         elif grep -qi "fedora" /etc/redhat-release; then
             OS="fedora"
             PKG_MANAGER="dnf"
+            DEV_PACKAGES="ncurses-devel openssl-devel elfutils-libelf-devel"
         else
             OS="rhel"
             PKG_MANAGER="yum"
+            DEV_PACKAGES="ncurses-devel openssl-devel elfutils-libelf-devel"
         fi
     else
         echo -e "${RED}不支持的系統！${NC}" | tee -a "$LOG_FILE"
@@ -72,19 +76,31 @@ get_latest_kernel() {
 install_kernel() {
     echo "正在安裝 linux-$LATEST_KERNEL..." | tee -a "$LOG_FILE"
     $PKG_MANAGER update -y || { echo -e "${RED}更新包索引失敗${NC}" | tee -a "$LOG_FILE"; exit 1; }
-    $PKG_MANAGER install -y curl wget gcc make ncurses-devel openssl-devel elfutils-libelf-devel
+    $PKG_MANAGER install -y curl wget gcc make $DEV_PACKAGES || { echo -e "${RED}依賴安裝失敗${NC}" | tee -a "$LOG_FILE"; exit 1; }
     
     case $OS in
         "debian")
-            # 安裝 Ubuntu 主線內核
+            # 下載並驗證 Ubuntu 主線內核
             BASE_URL="https://kernel.ubuntu.com/~kernel-ppa/mainline/v$LATEST_KERNEL/"
             HEADERS_URL=$(curl -s "$BASE_URL" | grep -oP 'linux-headers-\d+\.\d+\.\d+-[0-9]+-generic_.*_amd64.deb' | head -n 1)
             IMAGE_URL=$(curl -s "$BASE_URL" | grep -oP 'linux-image-unsigned-\d+\.\d+\.\d+-[0-9]+-generic_.*_amd64.deb' | head -n 1)
             MODULES_URL=$(curl -s "$BASE_URL" | grep -oP 'linux-modules-\d+\.\d+\.\d+-[0-9]+-generic_.*_amd64.deb' | head -n 1)
             
+            if [ -z "$HEADERS_URL" ] || [ -z "$IMAGE_URL" ]; then
+                echo -e "${RED}無法解析內核文件 URL，請檢查版本 $LATEST_KERNEL${NC}" | tee -a "$LOG_FILE"
+                exit 1
+            fi
+            
             wget -q "$BASE_URL$HEADERS_URL" -O "linux-headers.deb" || { echo -e "${RED}頭文件下載失敗${NC}" | tee -a "$LOG_FILE"; exit 1; }
             wget -q "$BASE_URL$IMAGE_URL" -O "linux-image.deb" || { echo -e "${RED}映像文件下載失敗${NC}" | tee -a "$LOG_FILE"; exit 1; }
             [ -n "$MODULES_URL" ] && wget -q "$BASE_URL$MODULES_URL" -O "linux-modules.deb"
+            
+            # 驗證文件完整性
+            if ! dpkg-deb -W linux-headers.deb >/dev/null 2>&1 || ! dpkg-deb -W linux-image.deb >/dev/null 2>&1; then
+                echo -e "${RED}下載的文件不是有效的 Debian 包${NC}" | tee -a "$LOG_FILE"
+                rm -f linux-*.deb
+                exit 1
+            fi
             
             dpkg -i linux-*.deb || { echo -e "${RED}內核安裝失敗${NC}" | tee -a "$LOG_FILE"; exit 1; }
             rm -f linux-*.deb
