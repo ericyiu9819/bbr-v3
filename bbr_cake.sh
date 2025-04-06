@@ -1,186 +1,94 @@
 #!/bin/bash
 
-# 腳本需以 root 權限運行
-if [ "$EUID" -ne 0 ]; then
-    echo "請以 root 權限運行此腳本：sudo bash $0"
+# 脚本：自动更新到仓库中最新的稳定内核，启用BBR+Cake，并清理旧内核 (Debian/Ubuntu)
+
+# --- 配置 ---
+SYSCTL_CONF_FILE="/etc/sysctl.d/99-bbr-cake.conf"
+
+# --- 安全检查 ---
+# 1. 检查是否为Root用户
+if [[ $EUID -ne 0 ]]; then
+   echo "错误：此脚本必须以root权限运行！"
+   echo "请尝试使用 'sudo bash $0'"
+   exit 1
+fi
+
+# 2. 确认发行版 (基础检查)
+if ! command -v apt &> /dev/null; then
+    echo "错误：未找到 'apt' 命令。此脚本似乎不适用于当前系统。"
+    echo "仅支持基于Debian/Ubuntu的系统。"
     exit 1
 fi
 
-# 定義顏色輸出
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m' # No Color
-
-# 日誌文件
-LOG_FILE="/var/log/bbr_cake_install.log"
-echo "腳本開始執行: $(date)" > "$LOG_FILE"
-
-# 檢測網卡名稱
-NET_INTERFACE=$(ip link | grep -oP '(ens|eth|enp)\w+' | head -n 1)
-if [ -z "$NET_INTERFACE" ]; then
-    echo -e "${RED}未檢測到網卡，請手動指定${NC}" | tee -a "$LOG_FILE"
-    exit 1
+# --- 用户确认 ---
+echo "--------------------------------------------------"
+echo "警告：此脚本将执行以下操作："
+echo "1. 更新软件包列表。"
+echo "2. 安装仓库中最新的通用内核映像和头文件 (linux-image-generic, linux-headers-generic)。"
+echo "3. 创建/覆盖 $SYSCTL_CONF_FILE 文件以启用 BBR 和 Cake 队列。"
+echo "4. 尝试自动删除不再需要的旧内核。"
+echo "5. 提示您重启系统以应用更改。"
+echo ""
+echo "!!! 操作具有风险，可能导致系统问题。请确保已备份数据。 !!!"
+echo "--------------------------------------------------"
+read -p "您确定要继续吗？(输入 'yes' 继续): " CONFIRMATION
+if [[ "$CONFIRMATION" != "yes" ]]; then
+    echo "操作已取消。"
+    exit 0
 fi
-echo "檢測到的網卡: $NET_INTERFACE" | tee -a "$LOG_FILE"
 
-# 檢測系統類型並設置包管理器
-detect_os() {
-    if [ -f /etc/debian_version ]; then
-        OS="debian"
-        PKG_MANAGER="apt-get"
-        DEV_PACKAGES="libncurses-dev libssl-dev libelf-dev"
-    elif [ -f /etc/redhat-release ]; then
-        if grep -qi "centos" /etc/redhat-release; then
-            OS="centos"
-            PKG_MANAGER="yum"
-            DEV_PACKAGES="ncurses-devel openssl-devel elfutils-libelf-devel"
-        elif grep -qi "fedora" /etc/redhat-release; then
-            OS="fedora"
-            PKG_MANAGER="dnf"
-            DEV_PACKAGES="ncurses-devel openssl-devel elfutils-libelf-devel"
-        else
-            OS="rhel"
-            PKG_MANAGER="yum"
-            DEV_PACKAGES="ncurses-devel openssl-devel elfutils-libelf-devel"
-        fi
-    else
-        echo -e "${RED}不支持的系統！${NC}" | tee -a "$LOG_FILE"
-        exit 1
-    fi
-    echo "檢測到的系統: $OS (包管理器: $PKG_MANAGER)" | tee -a "$LOG_FILE"
-}
+# --- 执行步骤 ---
+echo ">>> 步骤 1/5: 更新软件包列表..."
+apt update || { echo "错误：apt update 失败！"; exit 1; }
+echo "软件包列表更新完成。"
+echo ""
 
-# 檢查當前內核版本
-check_bbr() {
-    CURRENT_KERNEL=$(uname -r)
-    BBR_ENABLED=$(sysctl net.ipv4.tcp_congestion_control | grep bbr 2>/dev/null)
-    echo "當前內核版本: $CURRENT_KERNEL" | tee -a "$LOG_FILE"
-    if [ -n "$BBR_ENABLED" ]; then
-        echo -e "${GREEN}BBR 已啟用，當前算法: $(sysctl -n net.ipv4.tcp_congestion_control)${NC}" | tee -a "$LOG_FILE"
-    else
-        echo "BBR 未啟用，當前算法: $(sysctl -n net.ipv4.tcp_congestion_control 2>/dev/null || echo '未知')" | tee -a "$LOG_FILE"
-    fi
-}
+echo ">>> 步骤 2/5: 安装最新的通用内核..."
+# 安装通用元包，这通常会拉取最新的可用内核版本
+# 同时安装头文件，这对于某些需要编译内核模块的软件（如DKMS）是必要的
+apt install -y linux-image-generic linux-headers-generic || { echo "错误：内核安装失败！"; exit 1; }
+echo "最新内核映像和头文件安装（或已是最新）完成。"
+echo ""
 
-# 獲取最新穩定內核版本
-get_latest_kernel() {
-    LATEST_KERNEL=$(curl -s https://www.kernel.org/ | grep -oP 'linux-\K[0-9]+\.[0-9]+\.[0-9]+' | grep -v rc | sort -V | tail -n 1)
-    if [ -z "$LATEST_KERNEL" ]; then
-        echo -e "${RED}無法獲取最新內核版本，請檢查網絡${NC}" | tee -a "$LOG_FILE"
-        exit 1
-    fi
-    echo "最新穩定內核版本: $LATEST_KERNEL" | tee -a "$LOG_FILE"
-}
+echo ">>> 步骤 3/5: 配置 sysctl 以启用 BBR 和 Cake..."
+# 创建或覆盖配置文件
+cat > "$SYSCTL_CONF_FILE" << EOF
+# 启用 BBR 拥塞控制算法
+net.ipv4.tcp_congestion_control=bbr
 
-# 安裝新內核並刪除舊內核
-install_kernel() {
-    echo "正在安裝 linux-$LATEST_KERNEL..." | tee -a "$LOG_FILE"
-    $PKG_MANAGER update -y || { echo -e "${RED}更新包索引失敗${NC}" | tee -a "$LOG_FILE"; exit 1; }
-    $PKG_MANAGER install -y curl wget gcc make $DEV_PACKAGES || { echo -e "${RED}依賴安裝失敗${NC}" | tee -a "$LOG_FILE"; exit 1; }
-    
-    case $OS in
-        "debian")
-            # 下載並驗證 Ubuntu 主線內核
-            BASE_URL="https://kernel.ubuntu.com/~kernel-ppa/mainline/v$LATEST_KERNEL/"
-            HEADERS_URL=$(curl -s "$BASE_URL" | grep -oP 'linux-headers-\d+\.\d+\.\d+-[0-9]+-generic_.*_amd64.deb' | head -n 1)
-            IMAGE_URL=$(curl -s "$BASE_URL" | grep -oP 'linux-image-unsigned-\d+\.\d+\.\d+-[0-9]+-generic_.*_amd64.deb' | head -n 1)
-            MODULES_URL=$(curl -s "$BASE_URL" | grep -oP 'linux-modules-\d+\.\d+\.\d+-[0-9]+-generic_.*_amd64.deb' | head -n 1)
-            
-            if [ -z "$HEADERS_URL" ] || [ -z "$IMAGE_URL" ]; then
-                echo -e "${RED}無法解析內核文件 URL，請檢查版本 $LATEST_KERNEL${NC}" | tee -a "$LOG_FILE"
-                exit 1
-            fi
-            
-            wget -q "$BASE_URL$HEADERS_URL" -O "linux-headers.deb" || { echo -e "${RED}頭文件下載失敗${NC}" | tee -a "$LOG_FILE"; exit 1; }
-            wget -q "$BASE_URL$IMAGE_URL" -O "linux-image.deb" || { echo -e "${RED}映像文件下載失敗${NC}" | tee -a "$LOG_FILE"; exit 1; }
-            [ -n "$MODULES_URL" ] && wget -q "$BASE_URL$MODULES_URL" -O "linux-modules.deb"
-            
-            # 驗證文件完整性
-            if ! dpkg-deb -W linux-headers.deb >/dev/null 2>&1 || ! dpkg-deb -W linux-image.deb >/dev/null 2>&1; then
-                echo -e "${RED}下載的文件不是有效的 Debian 包${NC}" | tee -a "$LOG_FILE"
-                rm -f linux-*.deb
-                exit 1
-            fi
-            
-            dpkg -i linux-*.deb || { echo -e "${RED}內核安裝失敗${NC}" | tee -a "$LOG_FILE"; exit 1; }
-            rm -f linux-*.deb
-            
-            # 刪除舊內核
-            OLD_KERNELS=$(dpkg -l | grep linux-image | grep -v "$LATEST_KERNEL" | awk '{print $2}')
-            if [ -n "$OLD_KERNELS" ]; then
-                echo "刪除舊內核: $OLD_KERNELS" | tee -a "$LOG_FILE"
-                apt-get purge -y $OLD_KERNELS
-                apt-get autoremove -y
-            fi
-            update-grub || { echo -e "${RED}GRUB 更新失敗${NC}" | tee -a "$LOG_FILE"; exit 1; }
-            ;;
-        "centos"|"rhel"|"fedora")
-            # 源碼編譯安裝
-            wget -q "https://kernel.org/pub/linux/kernel/v${LATEST_KERNEL%%.*}.x/linux-$LATEST_KERNEL.tar.xz" || { echo -e "${RED}內核源碼下載失敗${NC}" | tee -a "$LOG_FILE"; exit 1; }
-            tar -xf linux-$LATEST_KERNEL.tar.xz
-            cd linux-$LATEST_KERNEL
-            cp /boot/config-$(uname -r) .config || cp /boot/config-* .config
-            make oldconfig
-            make -j$(nproc) || { echo -e "${RED}內核編譯失敗${NC}" | tee -a "$LOG_FILE"; exit 1; }
-            make modules_install
-            make install || { echo -e "${RED}內核安裝失敗${NC}" | tee -a "$LOG_FILE"; exit 1; }
-            cd .. && rm -rf linux-$LATEST_KERNEL linux-$LATEST_KERNEL.tar.xz
-            
-            # 刪除舊內核
-            OLD_KERNELS=$(rpm -qa | grep kernel | grep -v "$LATEST_KERNEL")
-            if [ -n "$OLD_KERNELS" ]; then
-                echo "刪除舊內核: $OLD_KERNELS" | tee -a "$LOG_FILE"
-                $PKG_MANAGER remove -y $OLD_KERNELS
-            fi
-            grub2-mkconfig -o /boot/grub2/grub.cfg || { echo -e "${RED}GRUB 更新失敗${NC}" | tee -a "$LOG_FILE"; exit 1; }
-            ;;
-    esac
-}
+# 设置默认队列规则为 Cake (需要较新内核支持, >= 4.19)
+# 警告: 这将影响所有网络接口
+net.core.default_qdisc=cake
+EOF
 
-# 啟用 BBR
-enable_bbr() {
-    echo "啟用 BBR..." | tee -a "$LOG_FILE"
-    sysctl -w net.core.default_qdisc=fq
-    sysctl -w net.ipv4.tcp_congestion_control=bbr
-    echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
-    echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
-    sysctl -p
-}
+echo "已创建/更新 $SYSCTL_CONF_FILE :"
+cat "$SYSCTL_CONF_FILE"
+echo ""
+echo "正在尝试应用 sysctl 设置（完全生效需要重启）..."
+sysctl -p "$SYSCTL_CONF_FILE" || echo "警告：sysctl -p 执行时可能出现非致命错误（例如模块未加载），重启后应生效。"
+echo ""
 
-# 安裝並啟用 Cake
-enable_cake() {
-    echo "檢查並啟用 Cake..." | tee -a "$LOG_FILE"
-    if ! modinfo sch_cake > /dev/null 2>&1; then
-        echo "安裝 Cake 模塊..." | tee -a "$LOG_FILE"
-        $PKG_MANAGER install -y iproute2 kernel-modules-extra || $PKG_MANAGER install -y iproute linux-modules-extra-$(uname -r)
-    fi
-    sysctl -w net.core.default_qdisc=cake
-    echo "net.core.default_qdisc=cake" >> /etc/sysctl.conf
-    sysctl -p
-    tc qdisc replace dev "$NET_INTERFACE" root cake bandwidth 1000Mbit || { echo -e "${RED}Cake 設置失敗${NC}" | tee -a "$LOG_FILE"; }
-}
+echo ">>> 步骤 4/5: 清理旧内核..."
+echo "运行 'apt autoremove --purge' 来删除旧的、不再需要的内核..."
+# autoremove 通常会保留当前运行的内核和最新安装的内核
+apt autoremove --purge -y || { echo "警告：清理旧内核时出错，可能需要手动清理。"; }
+echo "旧内核清理尝试完成。"
+echo ""
 
-# 主流程
-echo "開始執行一鍵安裝腳本..." | tee -a "$LOG_FILE"
-detect_os
-check_bbr
-get_latest_kernel
+echo ">>> 步骤 5/5: 完成！需要重启系统。"
+echo "--------------------------------------------------"
+echo "所有步骤已执行完毕。"
+echo "内核已更新（如果需要），sysctl配置已修改以启用BBR和Cake，旧内核已尝试清理。"
+echo ""
+echo "!!! 重要：您必须重启系统才能加载新内核并使所有设置完全生效 !!!"
+echo "--------------------------------------------------"
 
-if [[ "$CURRENT_KERNEL" != *"$LATEST_KERNEL"* ]]; then
-    echo "當前內核不是最新版，正在升級..." | tee -a "$LOG_FILE"
-    install_kernel
-    echo -e "${GREEN}新內核安裝完成，將在重啟後生效。${NC}" | tee -a "$LOG_FILE"
+read -p "您想现在重启系统吗？(输入 'yes' 重启): " REBOOT_CONFIRM
+if [[ "$REBOOT_CONFIRM" == "yes" ]]; then
+    echo "正在重启系统..."
+    reboot
 else
-    echo -e "${GREEN}當前內核已是最新版: $CURRENT_KERNEL${NC}" | tee -a "$LOG_FILE"
+    echo "请记得稍后手动重启系统以应用更改。"
 fi
 
-enable_bbr
-enable_cake
-
-# 驗證
-echo "驗證當前設置..." | tee -a "$LOG_FILE"
-sysctl net.ipv4.tcp_congestion_control | tee -a "$LOG_FILE"
-tc qdisc show dev "$NET_INTERFACE" | tee -a "$LOG_FILE"
-
-echo -e "${GREEN}安裝完成！請重啟系統（sudo reboot）以應用新內核。${NC}" | tee -a "$LOG_FILE"
-echo "日誌已保存至: $LOG_FILE"
+exit 0
